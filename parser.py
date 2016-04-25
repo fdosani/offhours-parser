@@ -23,6 +23,96 @@ tz_aliases = {
 
 default_tz = 'et'
 
+DEFAULT_TIMEZONE = 'et'
+VALID_DAYS = ['M', 'T', 'W', 'H', 'F', 'S', 'U']
+
+
+class ScheduleParser:
+
+    cache = {}
+
+    def parse(self, tag_value):
+        # check the cache
+        if tag_value in self.cache:
+            return self.cache[tag_value]
+        schedule = {}
+        # parse schedule components
+        pieces = tag_value.split(';')
+        for piece in pieces:
+            kv = piece.split('=')
+            # components must by key-value
+            if not len(kv) == 2:
+                continue
+            key = kv[0]
+            value = kv[1]
+            if key == 'on' or key == 'off':
+                # parse custom on/off hours
+                value = self.parse_custom_hours(value)
+            schedule[key] = value
+        # add default timezone, if none supplied
+        if 'tz' not in schedule:
+            schedule['tz'] = DEFAULT_TIMEZONE
+        # validate
+        if not self.is_valid(schedule):
+            schedule = None
+        # cache
+        self.cache[tag_value] = schedule
+        return schedule
+
+    def parse_custom_hours(self, hours):
+        parsed = []
+        hours = hours.translate(None, '[]').split(',(')
+        for hour in hours:
+            hour = hour.translate(None, '()').split(',')
+            # custom hours must have two parts: (<days>, <hour>)
+            if not len(hour) == 2:
+                continue
+            try:
+                hour[1] = int(hour[1])
+            except ValueError:
+                continue
+            parsed.append({
+                'days': self.expand_day_range(hour[0]),
+                'hour': hour[1]
+            })
+        return parsed
+
+    def expand_day_range(self, days):
+        if len(days) == 1:
+            return [days]
+        days = days.split('-')
+        if not len(days) == 2:
+            return []
+        # return a slice of valid days
+        return VALID_DAYS[VALID_DAYS.index(days[0]):VALID_DAYS.index(days[1])+1]
+
+    def is_valid(self, schedule):
+        # off and on are both required if either is present
+        if 'off' in schedule and 'on' not in schedule:
+            return False
+        elif 'on' in schedule and 'off' not in schedule:
+            return False
+        # validate custom on/off hours
+        if 'off' in schedule and 'on' in schedule:
+            if not self.is_valid_hours(schedule['off']):
+                return False
+            if not self.is_valid_hours(schedule['on']):
+                return False
+        return True
+
+    def is_valid_hours(self, hours):
+        if len(hours) <= 0:
+            return False
+        for hour in hours:
+            if not self.is_valid_hour(hour):
+                return False
+        return True
+
+    def is_valid_hour(self, hour):
+        if len(hour['days']) <= 0:
+            return False
+        return True
+
 
 def valid_day_range(days):
     """
@@ -46,7 +136,6 @@ def valid_day_range(days):
         return days in valid_days
     else:
         return False
-
 
 
 def parse_time(days, hour):
@@ -93,9 +182,6 @@ def parse_time(days, hour):
     return out
 
 
-
-
-
 def parse_keys(item):
     """
     function which takes in a key, value format like:
@@ -130,26 +216,22 @@ def parse_keys(item):
     key, values = pair[0], pair[1]
     #remove [] from the string
     values = values.translate(None, "[]")
-
     if key in ('tz'):
         #defaut tz
         out[key] = default_tz
         if values in tz_aliases:
             out[key] = values
         return out
-
     #if someone passes a bad key then return None
     elif key in ('off', 'on'):
         #extract tuples. as long as the string is in the format
         # (aaa) (aaa) (aaa) it should be fine
         pattern = re.compile(r'\(([^)]*)\)')
         values = pattern.findall(values)
-
         out[key] = None #setup blank key
         for time in values: #iterate through list of dates
             time = time.split(",")
             if len(time) != 2: return None #we should be receiving 2 items
-
             #call parse_time. if it fails we will return None for malformed.
             try:
                 pt = parse_time(time[0], int(time[1]))
@@ -162,11 +244,8 @@ def parse_keys(item):
         #set the key to the final list of times
         out[key] = tl
         return out
-
     else:
         return None
-
-
 
 
 def parse_off_hours(offhours):
@@ -191,7 +270,6 @@ def parse_off_hours(offhours):
                   ],
                   'tz': "et"
                 }
-
     args:
         offhours (str):
             string denoting a desired offhours schedule
@@ -201,14 +279,12 @@ def parse_off_hours(offhours):
     #create our base items
     output = {}
     items = offhours.split(';')
-
     for item in items:
         p = parse_keys(item)
         if not p:
             return None
         else:
             output.update(p)
-
     #if no tz then set the default one
     if not output.get('tz'):
         output['tz'] = default_tz
