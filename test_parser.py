@@ -1,6 +1,6 @@
 import unittest
-import parser as p
-from parser import ScheduleParser, DEFAULT_TIMEZONE
+import function_parser as p
+from class_parser import ScheduleParser, DEFAULT_TZ, VALID_HOURS, VALID_DAYS
 
 
 class ScheduleParserTest(unittest.TestCase):
@@ -30,7 +30,7 @@ class ScheduleParserTest(unittest.TestCase):
             [{ 'days': ['M', 'T', 'W', 'H', 'F'], 'hour': 7 }],
             s['on']
         )
-        self.assertEquals(DEFAULT_TIMEZONE, s['tz'])
+        self.assertEquals(DEFAULT_TZ, s['tz'])
 
     def test_parses_multiple_hours(self):
         s = self.parser.parse('off=[(M-F,19),(S,9)];on=[(M-F,7),(S,15)];tz=pst')
@@ -57,6 +57,18 @@ class ScheduleParserTest(unittest.TestCase):
     def test_invalid_day(self):
         s = self.parser.parse('off=(asdf,19);on=(asdf,7)')
         self.assertEquals(None, s)
+
+    def test_valid_hour_range(self):
+        self.assertEquals(True, self.parser.is_valid_hour_range(0))
+        self.assertEquals(True, self.parser.is_valid_hour_range(12))
+        self.assertEquals(True, self.parser.is_valid_hour_range(23))
+        self.assertEquals(False, self.parser.is_valid_hour_range(24))
+        self.assertEquals(False, self.parser.is_valid_hour_range(99))
+
+    def test_valid_day(self):
+        for d in VALID_DAYS:
+            self.assertEquals(True, self.parser.is_valid_day(d))
+        self.assertEquals(False, self.parser.is_valid_day("x"))
 
 
 class ParserTest(unittest.TestCase):
