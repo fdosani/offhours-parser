@@ -52,10 +52,18 @@ The schedule parser will return a dict or None (if the schedule is invalid):
 
 #### Usage:
 ```
->>> import parser as p
+>>> import function_parser as p
 >>> offhours = p.parse_off_hours("off=(M-F,19);on=(M-F,7);tz=pt")
 >>> offhours
 {'on': [{'days': 'M', 'hour': 7}, {'days': 'T', 'hour': 7}, {'days': 'W', 'hour': 7}, {'days': 'H', 'hour': 7}, {'days': 'F', 'hour': 7}],
 'off': [{'days': 'M', 'hour': 19}, {'days': 'T', 'hour': 19}, {'days': 'W', 'hour': 19}, {'days': 'H', 'hour': 19}, {'days': 'F', 'hour': 19}],
 'tz': 'pt'}
+```
+
+Or use the class version of the parser(slightly different functionality):
+```
+>>> from class_parser import ScheduleParser
+>>> offhours = ScheduleParser()
+>>> offhours.parse("off=(M-F,19);on=(M-F,7);tz=pt")
+{'on': [{'days': ['M', 'T', 'W', 'H', 'F'], 'hour': 7}], 'off': [{'days': ['M', 'T', 'W', 'H', 'F'], 'hour': 19}], 'tz': 'pt'}
 ```
